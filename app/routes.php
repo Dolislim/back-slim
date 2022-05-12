@@ -11,6 +11,7 @@ use App\Application\Actions\User\ListUsersAction;
 use App\Application\Actions\User\ViewUserAction;
 use App\Application\Actions\Exemple\ExempleWithParentAction;
 use App\Application\Actions\Exemple\ExempleSingleAction;
+use App\Application\Actions\Dolibarr\DolibarrAction;
 
 return function (App $app) {
     $app->options('/{routes:.*}', function (Request $request, Response $response) {
@@ -85,6 +86,6 @@ return function (App $app) {
     // Todo: Liste des produits
     // Todo: Affichage d'un produit
     $app->group('/products', function (Group $group) {
-        $group->get('', ExempleSingleAction::class);
+        $group->get('', DolibarrAction::class);
     });
 };
