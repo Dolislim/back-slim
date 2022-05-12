@@ -22,6 +22,10 @@ return function (App $app) {
     $app->group('/exemple', function (Group $group) {
         $group->get('', ExempleWithParentAction::class); // Avec class groupant des actions
         $group->get('/single', ExempleSingleAction::class); // Avec class mono action
+        $group->get('/env', function (Request $request, Response $response) { // Utilisation de .env
+            $response->getBody()->write('ENVIRONNEMENT => ' . $_ENV['ENVIRONNEMENT']);
+            return $response;
+        });
     });
 
     $app->get('/', function (Request $request, Response $response) {
