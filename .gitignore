@@ -1,0 +1,12 @@
+# slim/slim-skeleton
+.idea/
+.vscode/
+/coverage/
+/vendor/
+/logs/*
+!/logs/README.md
+.phpunit.result.cache
+
+# Miscellaneous
+composer.lock
+.env
