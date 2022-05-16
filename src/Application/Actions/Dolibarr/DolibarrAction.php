@@ -14,15 +14,22 @@ final class DolibarrAction extends Action
 {
     protected $products;
     protected $test;
+    protected $allProducts;
 
     public function __construct()
     {
         $this->products = new Products;
-        $this->test = $this->products->test("Thomas");
+        $this->test = $this->products->getProductById(5);
     }
 
     protected function action(): Response
     {
+        $productId = $this->resolveArg('id');
+        // $productRef = $this->resolveArg('ref');
+
+        if ($productId) $this->test = $this->products->getProductById($productId);
+        else $this->test = $this->products->getAllProducts();
+
         return $this->respondWithData($this->test);
     }
 }

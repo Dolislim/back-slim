@@ -87,5 +87,6 @@ return function (App $app) {
     // Todo: Affichage d'un produit
     $app->group('/products', function (Group $group) {
         $group->get('', DolibarrAction::class);
+        $group->get('/{id}', DolibarrAction::class);
     });
 };
