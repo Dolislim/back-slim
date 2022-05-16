@@ -7,9 +7,9 @@ namespace App\Domain\Dolibarr;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7;
 use GuzzleHttp\Exception\ClientException;
-use GuzzleHttp\Exception\ServerException;
 
 /**
+ * Guzzle request to Dolibarr REST API
  * Requête Guzzle vers l'API REST Dolibarr
  * @author Thomas Savournin <tosave.vbl@gmail.com>
  */
@@ -17,66 +17,51 @@ abstract class Dolibarr
 {
     private string $_apiUrl;
     private string $_apiKey;
-    private Client $_client;
 
     private string $_type;
     private string $_request;
     private array $_data;
-    private array $_response;
 
-    public int $statut;
-    public array $error;
+    private $_response;
+    private $_statusCode;
+    private $_body;
 
     public function __construct()
     {
-        $this->_apiUrl = $_ENV['DOLIBARR_API_URL'];
+        $this->_apiUrl = $_ENV['DOLIBARR_API_URL'] . '/index.php/';
         $this->_apiKey = $_ENV['DOLIBARR_API_KEY'];
     }
 
     /**
-     * On vérifie si le serveur API répond
-     */
-    private function getStatut(): bool
-    {
-        return @get_headers($this->_apiUrl);
-    }
-
-    /**
+     * Query on the Dolibarr API
      * Requête sur l'API Dolibarr
+     * @return null
      */
     private function getDolibarrRequest()
     {
-        if (!$this->getStatut()) {
-
-            $this->statut = 666; // TODO
-            $this->error = [
-                'request' => $this->_apiUrl,
-                'response' => 'The server is not responding'
-            ];
-        }
-
         try {
-            $this->_client = new Client([
-                'base_uri' => $this->_apiUrl
+            $client = new Client([
+                'base_uri' => $this->_apiUrl,
             ]);
 
             switch ($this->_type) {
                 case 'GET':
-                    $this->_response = $this->_client->get($this->_request, [
+                    $this->_response = $client->get($this->_request, [
                         'headers' => [
                             'Accept' => 'application/json',
-                            'DOLAPIKEY' => $this->_apiKey
-                        ]
+                            'DOLAPIKEY' => $this->_apiKey,
+                        ],
+                        'verify' => false, // ATTENTION true EN PRODUCTION !!! Vérification de certificat SSL
                     ]);
                     break;
 
                 case 'POST':
-                    $this->_response = $this->_client->post($this->_request, [
+                    $this->_response = $client->post($this->_request, [
                         'headers' => [
                             'Accept' => 'application/json',
-                            'DOLAPIKEY' => $this->_apiKey
+                            'DOLAPIKEY' => $this->_apiKey,
                         ],
-                        'body' => $this->_data
+                        'body' => $this->_data,
                     ]);
                     break;
 
@@ -95,83 +80,98 @@ abstract class Dolibarr
                     $this->_response = false;
                     break;
             }
+        } catch (ClientException $e) {
+            throw new \Exception(Psr7\Message::toString($e->getResponse()));
         }
-        // Todo: Voir le fonctionnement des erreurs dans Slim
-        catch (ClientException $e) {
-            $error = [
-                'request' => Psr7\Message::toString($e->getRequest()),
-                'response' => Psr7\Message::toString($e->getResponse())
-            ];
+
+        $this->_statusCode = $this->_response->getStatusCode();
+        if ($this->_statusCode != 200) {
+            throw new \Exception("The response has an error, statusCode: " . $this->_statusCode);
         }
+
+        $this->_body = json_decode((string) $this->_response->getBody(), true);
+
+        return null;
     }
 
     /**
+     * GET request on Dolibarr REST API
      * Requête GET sur l'API REST Dolibarr
-     * @param string $request URi de la requête
-     * @return array $this->_response
+     * @param string $request URi containing the request / URi contenant la requête
+     * @return array $this->_body API Response / Réponse de l'API
      */
     protected function getDolibarr($request)
     {
         $this->_type = "GET";
         $this->_request = $request;
         $this->getDolibarrRequest();
-        return $this->_response;
+        return $this->_body;
     }
 
     /**
+     * POST request on Dolibarr REST API
      * Requête POST sur l'API REST Dolibarr
+     * @param string $request URi containing the request / URi contenant la requête
+     * @param array $data Paramètres du POST / POST parameters
+     * @return array $this->_body API Response / Réponse de l'API
      */
-    protected function postDolibarr($request, $data = false)
+    protected function postDolibarr($request, $data = [])
     {
         $this->_type = "POST";
         $this->_request = $request;
         $this->_data = $data;
         $this->getDolibarrRequest();
-        return $this->_response;
+        return $this->_body;
     }
 
     /**
+     * PUT request on Dolibarr REST API
      * Requête PUT sur l'API REST Dolibarr
+     * @param string $request URi containing the request / URi contenant la requête
+     * @return array $this->_body API Response / Réponse de l'API
      */
     protected function putDolibarr()
     {
         $this->_type = "PUT";
         $this->getDolibarrRequest();
-        return $this->_response;
+        return $this->_body;
     }
 
     /**
+     * DELETE request on Dolibarr REST API
      * Requête DELETE sur l'API REST Dolibarr
+     * @param string $request URi containing the request / URi contenant la requête
+     * @return array $this->_body API Response / Réponse de l'API
      */
     protected function deleteDolibarr()
     {
         $this->_type = "DELETE";
         $this->getDolibarrRequest();
-        return $this->_response;
+        return $this->_body;
     }
 
     /**
-     * TODO
-     * Retourne une collection après avoir supprimé les éléments vides (fonction récursive)
+     * Generates the URi of requests for Dolibarr API
+     * Génère l'URi des requêtes pour Dolibarr API
+     * @param string $uri URi to call on the API (after API/index.php/)
+     * @param array $default = [] Default params on this request
+     * @param array $params = [] Custom Settings
+     * @return string Query formatted with params
      */
-    public function collectDolibarr($data)
+    protected function createRequestDolibarr($uri, $params = [], $default = [])
     {
-        $data = array_filter(
-            $data,
-            function ($v, $k) {
-                if (in_array($v, array("", null))) return false; // On supprime les "" et les null
-                else return true;
-            },
-            ARRAY_FILTER_USE_BOTH
-        );
+        $request = $uri;
+        $thereAreAlreadyParams = false;
 
-        foreach ($data as $key => $value) {
-            if (is_array($value)) {
-                $data[$key] = $this->collectDolibarr($value);
+        foreach (array_merge($default, $params) as $key => $value) {
+            if ($thereAreAlreadyParams) {
+                $request .= '&' . $key . '=' . $value;
+            } else {
+                $request .= '?' . $key . '=' . $value;
+                $thereAreAlreadyParams = true;
             }
         }
 
-        // return collect($data);
-        return $data;
+        return $request;
     }
 }
