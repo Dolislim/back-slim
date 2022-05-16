@@ -42,6 +42,7 @@ $container = $containerBuilder->build();
 // Instantiate the app
 AppFactory::setContainer($container);
 $app = AppFactory::create();
+$app->setBasePath(''); // Chemin relatif vers l'API (ex: '/api')
 $callableResolver = $app->getCallableResolver();
 
 // Register middleware
