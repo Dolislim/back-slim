@@ -12,6 +12,8 @@ use App\Application\Actions\User\ViewUserAction;
 use App\Application\Actions\Exemple\ExempleWithParentAction;
 use App\Application\Actions\Exemple\ExempleSingleAction;
 use App\Application\Actions\Dolibarr\DolibarrAction;
+use App\Application\Actions\Products;
+use App\Application\Middleware\TrailingSlashMiddleware;
 
 return function (App $app) {
     $app->options('/{routes:.*}', function (Request $request, Response $response) {
@@ -71,7 +73,7 @@ return function (App $app) {
     // Shipments
     // Todo: Liste des expéditions
     // Todo: Informations sur une expédition
-    $app->group('/shipments', function (Group $group) {
+    $app->group('/{url:shipments|livraisons[/]?}', function (Group $group) {
         $group->get('', ExempleSingleAction::class);
     });
 
@@ -85,8 +87,9 @@ return function (App $app) {
     // Products
     // Todo: Liste des produits
     // Todo: Affichage d'un produit
-    $app->group('/products', function (Group $group) {
-        $group->get('', DolibarrAction::class);
-        $group->get('/{id}', DolibarrAction::class);
+    $app->group('/{url:products|produits[/]?}', function (Group $group) {
+        $group->get('', Products\ListProductsAction::class);
+        $group->get('/{id}', Products\GetProductByIdAction::class);
+        $group->get('/{cat:category|categorie}/{id}', Products\ListProductsByCategoryAction::class);
     });
 };
